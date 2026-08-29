@@ -1,0 +1,55 @@
+services:
+  # PostgreSQL with PostGIS extension for GIS/spatial data
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: land_acquisition_db
+    restart: always
+    environment:
+      POSTGRES_DB: land_acquisition
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching, sessions, and real-time features
+  redis:
+    image: redis:7-alpine
+    container_name: land_acquisition_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    command: redis-server --appendonly yes
+
+  # MinIO for document storage (S3-compatible object storage)
+  minio:
+    image: minio/minio:latest
+    container_name: land_acquisition_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

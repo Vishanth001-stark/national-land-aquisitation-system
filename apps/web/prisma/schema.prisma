@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum RoleName {
+  CENTRAL_MINISTRY
+  STATE_NODAL
+  DISTRICT_COLLECTOR
+  LAND_ACQUIRING_BODY
+  LAND_REVENUE_OFFICER
+  TEHSILDAR
+  RR_OFFICER
+  FINANCE_OFFICER
+  CITIZEN
+  SYSTEM_ADMIN
+}
+
+enum ProjectType {
+  highway
+  railway
+  irrigation
+  industrial_corridor
+  urban_development
+  renewable_energy
+}
+
+enum WorkflowStage {
+  SIA
+  PRELIMINARY_NOTIFICATION
+  OBJECTIONS_CONSENT
+  DECLARATION
+  AWARD
+  COMPENSATION
+  POSSESSION
+}
+
+enum WorkflowStatus {
+  PENDING
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum LandType {
+  agricultural
+  forest
+  wasteland
+  residential
+  commercial
+  government
+}
+
+enum PossessionStatus {
+  NOT_ACQUIRED
+  ACQUIRED
+  POSSESSED
+}
+
+enum PaymentMode {
+  bank_transfer
+  cheque
+  cash
+  pending
+}
+
+enum CompensationStatus {
+  assessed
+  approved
+  paid
+  rejected
+}
+
+// Models
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  passwordHash String
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  stateId   String?
+  state     State?   @relation(fields: [stateId], references: [id])
+  districtId String?
+  district  District? @relation(fields: [districtId], references: [id])
+  documents Document[]
+  projects  Project[] @relation("ProjectCreator")
+  auditLogs AuditLog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        RoleName @unique
+  description String?
+  users       User[]
+  createdAt   DateTime @default(now())
+
+  @@map("roles")
+}
+
+model State {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  districts District[]
+  users     User[]
+  projects  Project[]
+  createdAt DateTime   @default(now())
+
+  @@map("states")
+}
+
+model District {
+  id        String   @id @default(uuid())
+  name      String
+  stateId   String
+  state     State    @relation(fields: [stateId], references: [id])
+  users     User[]
+  projects  Project[]
+  createdAt DateTime @default(now())
+
+  @@map("districts")
+}
+
+model Project {
+  id              String        @id @default(uuid())
+  name            String
+  acquiringBodyId String?
+  projectType     ProjectType
+  stateId         String
+  state           State         @relation(fields: [stateId], references: [id])
+  districtId      String
+  district        District      @relation(fields: [districtId], references: [id])
+  status          String        @default("proposal")
+  totalAreaHectares Decimal?
+  estimatedCost   Decimal?
+  createdBy       String
+  creator         User          @relation("ProjectCreator", fields: [createdBy], references: [id])
+  workflowInstances WorkflowInstance[]
+  landParcels     LandParcel[]
+  documents       Document[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("projects")
+}
+
+model WorkflowInstance {
+  id            String         @id @default(uuid())
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id])
+  currentStage  WorkflowStage
+  status        WorkflowStatus @default(PENDING)
+  slaDeadline   DateTime?
+  startedAt     DateTime       @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+
+  @@map("workflow_instances")
+}
+
+model LandParcel {
+  id               String          @id @default(uuid())
+  projectId        String
+  project          Project         @relation(fields: [projectId], references: [id])
+  ulpin            String?
+  surveyNumber     String?
+  areaHectares     Decimal?
+  landType         LandType?
+  ownerName        String?
+  compensationAmount Decimal?
+  possessionStatus PossessionStatus @default(NOT_ACQUIRED)
+  latitude         Decimal?
+  longitude        Decimal?
+  createdAt        DateTime        @default(now())
+
+  @@map("land_parcels")
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  documentType String
+  filePath    String
+  fileSize    Int?
+  mimeType    String?
+  uploadedBy  String
+  uploader    User     @relation(fields: [uploadedBy], references: [id])
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  @@map("documents")
+}
+
+model CompensationRecord {
+  id              String             @id @default(uuid())
+  landParcelId    String?
+  assessedAmount  Decimal?
+  paidAmount      Decimal?
+  paymentDate     DateTime?
+  paymentMode     PaymentMode?
+  bankAccountHash String?
+  status          CompensationStatus @default(assessed)
+  createdAt       DateTime           @default(now())
+
+  @@map("compensation_records")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
