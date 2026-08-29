@@ -91,6 +91,7 @@ model User {
   district  District? @relation(fields: [districtId], references: [id])
   documents Document[]
   projects  Project[] @relation("ProjectCreator")
+  proposals Proposal[] @relation("SubmittedProposals")
   auditLogs AuditLog[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -229,4 +230,21 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+model Proposal {
+  id              String   @id @default(uuid())
+  title           String
+  description     String
+  landArea        Float
+  location        String
+  estimatedCost   Float
+  purpose         String
+  status          String   @default("draft")
+  submittedBy     String
+  submittedByUser User     @relation("SubmittedProposals", fields: [submittedBy], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("proposals")
 }

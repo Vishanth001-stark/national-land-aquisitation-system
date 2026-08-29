@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, RoleName } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -6,17 +6,17 @@ async function main() {
   console.log('🌱 Seeding database...')
 
   // Seed roles
-  const roles = [
-    { name: 'CENTRAL_MINISTRY', description: 'Central Ministry officials' },
-    { name: 'STATE_NODAL', description: 'State Nodal Agency' },
-    { name: 'DISTRICT_COLLECTOR', description: 'District Collector' },
-    { name: 'LAND_ACQUIRING_BODY', description: 'Land Acquiring Body (NHAI, Railways, etc.)' },
-    { name: 'LAND_REVENUE_OFFICER', description: 'Land Revenue Officer' },
-    { name: 'TEHSILDAR', description: 'Tehsildar' },
-    { name: 'RR_OFFICER', description: 'Rehabilitation & Resettlement Officer' },
-    { name: 'FINANCE_OFFICER', description: 'Finance Officer' },
-    { name: 'CITIZEN', description: 'Citizen / Landowner' },
-    { name: 'SYSTEM_ADMIN', description: 'System Administrator' },
+  const roles: { name: RoleName; description: string }[] = [
+    { name: RoleName.CENTRAL_MINISTRY, description: 'Central Ministry officials' },
+    { name: RoleName.STATE_NODAL, description: 'State Nodal Agency' },
+    { name: RoleName.DISTRICT_COLLECTOR, description: 'District Collector' },
+    { name: RoleName.LAND_ACQUIRING_BODY, description: 'Land Acquiring Body (NHAI, Railways, etc.)' },
+    { name: RoleName.LAND_REVENUE_OFFICER, description: 'Land Revenue Officer' },
+    { name: RoleName.TEHSILDAR, description: 'Tehsildar' },
+    { name: RoleName.RR_OFFICER, description: 'Rehabilitation & Resettlement Officer' },
+    { name: RoleName.FINANCE_OFFICER, description: 'Finance Officer' },
+    { name: RoleName.CITIZEN, description: 'Citizen / Landowner' },
+    { name: RoleName.SYSTEM_ADMIN, description: 'System Administrator' },
   ]
 
   for (const role of roles) {
