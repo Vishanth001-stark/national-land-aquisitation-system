@@ -54,10 +54,13 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // If CENTRAL_MINISTRY or SYSTEM_ADMIN, allow viewing all proposals; otherwise view user's own
+    const isAdmin =
+      session.user.role === 'CENTRAL_MINISTRY' ||
+      session.user.role === 'SYSTEM_ADMIN'
+
     const proposals = await prisma.proposal.findMany({
-      where: {
-        submittedBy: session.user.id,
-      },
+      where: isAdmin ? undefined : { submittedBy: session.user.id },
       orderBy: {
         createdAt: 'desc',
       },
@@ -66,6 +69,13 @@ export async function GET() {
           select: {
             name: true,
             email: true,
+          },
+        },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
           },
         },
       },

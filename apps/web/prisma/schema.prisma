@@ -93,6 +93,7 @@ model User {
   projects  Project[] @relation("ProjectCreator")
   proposals Proposal[] @relation("SubmittedProposals")
   auditLogs AuditLog[]
+  ownedLandParcels LandParcel[] @relation("ParcelOwner")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -147,6 +148,8 @@ model Project {
   estimatedCost   Decimal?
   createdBy       String
   creator         User          @relation("ProjectCreator", fields: [createdBy], references: [id])
+  proposalId      String?       @unique
+  proposal        Proposal?     @relation(fields: [proposalId], references: [id])
   workflowInstances WorkflowInstance[]
   landParcels     LandParcel[]
   documents       Document[]
@@ -179,12 +182,15 @@ model LandParcel {
   areaHectares     Decimal?
   landType         LandType?
   ownerName        String?
+  ownerId          String?
+  owner            User?           @relation("ParcelOwner", fields: [ownerId], references: [id])
   compensationAmount Decimal?
   possessionStatus PossessionStatus @default(NOT_ACQUIRED)
   latitude         Decimal?
   longitude        Decimal?
   createdAt        DateTime        @default(now())
 
+  @@index([ownerId])
   @@map("land_parcels")
 }
 
@@ -243,6 +249,7 @@ model Proposal {
   status          String   @default("draft")
   submittedBy     String
   submittedByUser User     @relation("SubmittedProposals", fields: [submittedBy], references: [id])
+  project         Project?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
