@@ -1,36 +1,8 @@
-import NextAuth, { NextAuthOptions, getServerSession, DefaultSession } from 'next-auth'
-import { JWT } from 'next-auth/jwt'
+import NextAuth, { NextAuthOptions, getServerSession } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
-
-// Extend NextAuth types to include custom properties
-declare module 'next-auth' {
-  interface User {
-    role?: string | null
-    stateId?: string | null
-    districtId?: string | null
-  }
-
-  interface Session {
-    user: {
-      id: string
-      role?: string | null
-      stateId?: string | null
-      districtId?: string | null
-    } & DefaultSession['user']
-  }
-}
-
-declare module 'next-auth/jwt' {
-  interface JWT {
-    id?: string
-    role?: string | null
-    stateId?: string | null
-    districtId?: string | null
-  }
-}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -81,7 +53,6 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
         token.role = user.role
         token.stateId = user.stateId
         token.districtId = user.districtId
@@ -90,7 +61,6 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = (token.id as string) || (token.sub as string)
         session.user.role = token.role as string
         session.user.stateId = token.stateId as string
         session.user.districtId = token.districtId as string
