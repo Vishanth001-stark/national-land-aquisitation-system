@@ -89,7 +89,8 @@ export default function CentralDashboard() {
 
       if (projectsRes.ok) {
         const projectsData = await projectsRes.json()
-        setProjects(projectsData)
+        const projectList = Array.isArray(projectsData) ? projectsData : projectsData.data || []
+        setProjects(projectList)
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err)
@@ -255,11 +256,11 @@ export default function CentralDashboard() {
               <p className="text-sm text-gray-500 mt-1">Track and advance projects through the 7-stage statutory workflow</p>
             </div>
             <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
-              {projects.length} Active Projects
+              {Array.isArray(projects) ? projects.length : 0} Active Projects
             </span>
           </div>
 
-          {projects.length === 0 ? (
+          {(!Array.isArray(projects) || projects.length === 0) ? (
             <div className="p-8 text-center text-gray-500">
               No land acquisition projects found. Seed the database to view projects.
             </div>
