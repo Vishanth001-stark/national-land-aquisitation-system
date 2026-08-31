@@ -50,8 +50,9 @@ export default function MapPage() {
   useEffect(() => {
     fetch('/api/proposals')
       .then((res) => res.json())
-      .then((data) => {
-        const parcelsWithCoords = data.map((proposal: any) => {
+      .then((resData) => {
+        const proposals = Array.isArray(resData) ? resData : resData?.data || []
+        const parcelsWithCoords = proposals.map((proposal: any) => {
           const matchedCity = Object.keys(cityCoords).find(city =>
             proposal.location.toLowerCase().includes(city.toLowerCase())
           )
