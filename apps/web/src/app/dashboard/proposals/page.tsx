@@ -40,7 +40,7 @@ export default function ProposalsPage() {
       const res = await fetch('/api/proposals')
       if (res.ok) {
         const data = await res.json()
-        setProposals(data)
+        setProposals(Array.isArray(data) ? data : data?.data || [])
       }
     } catch (err) {
       console.error('Error fetching proposals:', err)
