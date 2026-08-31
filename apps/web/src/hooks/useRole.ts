@@ -2,7 +2,9 @@
 
 import { useSession } from 'next-auth/react'
 
-const roleHierarchy = {
+// Role hierarchy — for display/ordering purposes ONLY.
+// Do NOT use this for authorization checks (use hasRole with exact match).
+export const roleHierarchy = {
   SYSTEM_ADMIN: 10,
   CENTRAL_MINISTRY: 9,
   STATE_NODAL: 8,
@@ -17,20 +19,32 @@ const roleHierarchy = {
 
 export function useRole() {
   const { data: session } = useSession()
-  const userRole = session?.user?.role as keyof typeof roleHierarchy
+  const userRole = session?.user?.role as keyof typeof roleHierarchy | undefined
 
-  const hasRole = (allowedRoles: string[]) => {
+  /**
+   * Returns true if the current user's role is in the allowedRoles list.
+   * Uses EXACT matching — higher roles do NOT automatically pass lower role checks.
+   * Use this for all authorization guards.
+   */
+  const hasRole = (allowedRoles: string[]): boolean => {
     if (!userRole) return false
-    const userLevel = roleHierarchy[userRole] || 0
-    return allowedRoles.some(role => {
-      const allowedLevel = roleHierarchy[role as keyof typeof roleHierarchy] || 0
-      return userLevel >= allowedLevel
-    })
+    return allowedRoles.includes(userRole)
+  }
+
+  /**
+   * Returns true if the current user's role is at or above the given role in hierarchy.
+   * Use this ONLY for display logic, never for access control.
+   */
+  const isAtLeastRole = (minRole: keyof typeof roleHierarchy): boolean => {
+    if (!userRole) return false
+    return (roleHierarchy[userRole] ?? 0) >= (roleHierarchy[minRole] ?? 0)
   }
 
   return {
     role: userRole,
     hasRole,
+    isAtLeastRole,
     isAuthenticated: !!session,
   }
 }
+

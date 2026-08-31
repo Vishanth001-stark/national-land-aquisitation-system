@@ -1,11 +1,39 @@
 import NextAuth, { NextAuthOptions, getServerSession } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { PrismaAdapter } from '@auth/prisma-adapter'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 
+// Extend NextAuth types to include custom fields
+declare module 'next-auth' {
+  interface User {
+    role?: string
+    stateId?: string | null
+    districtId?: string | null
+  }
+  interface Session {
+    user: {
+      id: string
+      name?: string | null
+      email?: string | null
+      role: string
+      stateId?: string | null
+      districtId?: string | null
+    }
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id?: string
+    role?: string
+    stateId?: string | null
+    districtId?: string | null
+  }
+}
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // NOTE: PrismaAdapter removed — it is incompatible with JWT session strategy.
+  // JWT strategy manages sessions entirely in signed tokens without DB session tables.
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -64,8 +92,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = (token.id as string) || (token.sub as string)
         session.user.role = token.role as string
-        session.user.stateId = token.stateId as string
-        session.user.districtId = token.districtId as string
+        session.user.stateId = token.stateId as string | null | undefined
+        session.user.districtId = token.districtId as string | null | undefined
       }
       return session
     }

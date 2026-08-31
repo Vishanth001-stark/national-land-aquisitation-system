@@ -105,12 +105,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="text-center text-sm text-gray-600">
-          <p>Demo credentials:</p>
-          <p className="mt-1">Email: <code className="bg-gray-100 px-2 py-1 rounded">admin@example.com</code></p>
-          <p>Password: <code className="bg-gray-100 px-2 py-1 rounded">admin123</code></p>
+        <div className="text-center text-sm text-gray-500 mt-2">
+          National Land Acquisition Management System
         </div>
       </div>
     </div>
   )
 }
+

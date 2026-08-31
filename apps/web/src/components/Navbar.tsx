@@ -5,6 +5,7 @@ import Link from 'next/link'
 
 export default function Navbar() {
   const { data: session } = useSession()
+  const role = session?.user?.role
 
   return (
     <nav className="bg-white shadow">
@@ -18,10 +19,12 @@ export default function Navbar() {
               <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
                 Dashboard
               </Link>
-              <Link href="/projects" className="text-gray-600 hover:text-gray-900">
-                Projects
-              </Link>
-              <Link href="/map" className="text-gray-600 hover:text-gray-900">
+              {(role === 'CENTRAL_MINISTRY' || role === 'SYSTEM_ADMIN' || role === 'STATE_NODAL') && (
+                <Link href="/dashboard/proposals" className="text-gray-600 hover:text-gray-900">
+                  Proposals
+                </Link>
+              )}
+              <Link href="/dashboard/map" className="text-gray-600 hover:text-gray-900">
                 Map
               </Link>
             </div>
@@ -42,4 +45,4 @@ export default function Navbar() {
       </div>
     </nav>
   )
-}
+}

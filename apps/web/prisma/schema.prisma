@@ -156,6 +156,8 @@ model Project {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  @@index([status])
+  @@index([createdBy])
   @@map("projects")
 }
 
@@ -190,6 +192,8 @@ model LandParcel {
   longitude        Decimal?
   createdAt        DateTime        @default(now())
 
+  compensationRecords CompensationRecord[]
+
   @@index([ownerId])
   @@map("land_parcels")
 }
@@ -213,6 +217,7 @@ model Document {
 model CompensationRecord {
   id              String             @id @default(uuid())
   landParcelId    String?
+  landParcel      LandParcel?        @relation(fields: [landParcelId], references: [id])
   assessedAmount  Decimal?
   paidAmount      Decimal?
   paymentDate     DateTime?
@@ -253,5 +258,8 @@ model Proposal {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@index([submittedBy])
+  @@index([status])
   @@map("proposals")
 }
+

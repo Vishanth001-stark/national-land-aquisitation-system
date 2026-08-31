@@ -11,89 +11,61 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get Project stats
-    const totalProjects = await prisma.project.count()
-
-    const projectAreaResult = await prisma.project.aggregate({
-      _sum: {
-        totalAreaHectares: true,
-      },
-    })
-
-    const projectCostResult = await prisma.project.aggregate({
-      _sum: {
-        estimatedCost: true,
-      },
-    })
-
-    const activeProjects = await prisma.project.count({
-      where: {
-        status: 'IN_PROGRESS',
-      },
-    })
-
-    // Get total proposals count
-    const totalProposals = await prisma.proposal.count()
-
-    // Get total land area from proposals
-    const landAreaResult = await prisma.proposal.aggregate({
-      _sum: {
-        landArea: true,
-      },
-    })
-
-    // Get total estimated cost from proposals
-    const costResult = await prisma.proposal.aggregate({
-      _sum: {
-        estimatedCost: true,
-      },
-    })
-
-    // Get proposals by status
-    const proposalsByStatus = await prisma.proposal.groupBy({
-      by: ['status'],
-      _count: {
-        status: true,
-      },
-    })
-
-    // Get recent pending proposals (exclude already converted ones)
-    const recentProposals = await prisma.proposal.findMany({
-      where: {
-        status: { not: 'converted' },
-        project: null,
-      },
-      take: 5,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        submittedByUser: {
-          select: {
-            name: true,
-            email: true,
+    // Run all DB queries in parallel
+    const [
+      totalProjects,
+      projectAreaResult,
+      projectCostResult,
+      activeProjects,
+      totalProposals,
+      landAreaResult,
+      costResult,
+      proposalsByStatus,
+      recentProposals,
+    ] = await Promise.all([
+      prisma.project.count(),
+      prisma.project.aggregate({ _sum: { totalAreaHectares: true } }),
+      prisma.project.aggregate({ _sum: { estimatedCost: true } }),
+      prisma.project.count({ where: { status: 'IN_PROGRESS' } }),
+      prisma.proposal.count(),
+      prisma.proposal.aggregate({ _sum: { landArea: true } }),
+      prisma.proposal.aggregate({ _sum: { estimatedCost: true } }),
+      prisma.proposal.groupBy({
+        by: ['status'],
+        _count: { status: true },
+      }),
+      prisma.proposal.findMany({
+        where: {
+          status: { not: 'converted' },
+          project: null,
+        },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          submittedByUser: {
+            select: { name: true, email: true },
+          },
+          project: {
+            select: { id: true, name: true },
           },
         },
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    })
+      }),
+    ])
 
     return NextResponse.json({
       // Project Stats
       totalProjects,
-      totalProjectArea: projectAreaResult._sum.totalAreaHectares ? Number(projectAreaResult._sum.totalAreaHectares) : 0,
-      totalProjectCost: projectCostResult._sum.estimatedCost ? Number(projectCostResult._sum.estimatedCost) : 0,
+      totalProjectArea: projectAreaResult._sum.totalAreaHectares
+        ? Number(projectAreaResult._sum.totalAreaHectares)
+        : 0,
+      totalProjectCost: projectCostResult._sum.estimatedCost
+        ? Number(projectCostResult._sum.estimatedCost)
+        : 0,
       activeProjects,
-
       // Proposal Stats
       totalProposals,
-      totalLandArea: landAreaResult._sum.landArea || 0,
-      totalEstimatedCost: costResult._sum.estimatedCost || 0,
+      totalLandArea: landAreaResult._sum.landArea ?? 0,
+      totalEstimatedCost: costResult._sum.estimatedCost ?? 0,
       proposalsByStatus,
       recentProposals,
     })

@@ -1,13 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
 export default function NewProposalPage() {
-  const { data: session } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -20,6 +19,7 @@ export default function NewProposalPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError(null)
 
     try {
       const response = await fetch('/api/proposals', {
@@ -35,11 +35,12 @@ export default function NewProposalPage() {
       if (response.ok) {
         router.push('/dashboard/proposals')
       } else {
-        alert('Failed to create proposal')
+        const data = await response.json()
+        setError(data?.error ?? 'Failed to create proposal. Please try again.')
       }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Error creating proposal')
+    } catch (err) {
+      console.error('Error:', err)
+      setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -49,6 +50,7 @@ export default function NewProposalPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -56,6 +58,12 @@ export default function NewProposalPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-8">Submit New Proposal</h1>
 
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Project Title *

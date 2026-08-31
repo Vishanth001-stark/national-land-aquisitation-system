@@ -13,24 +13,132 @@ export const ROLES = {
 
 export type Role = typeof ROLES[keyof typeof ROLES]
 
-export const rolePermissions = {
+export const rolePermissions: Record<Role, {
+  canViewNationalDashboard: boolean
+  canViewAllProjects: boolean
+  canViewAllProposals: boolean
+  canApproveProposals: boolean
+  canAdvanceWorkflow: boolean
+  canApproveAwards: boolean
+  canDisburseCompensation: boolean
+  canManageUsers: boolean
+  canViewOwnParcels: boolean
+}> = {
   [ROLES.CENTRAL_MINISTRY]: {
     canViewNationalDashboard: true,
     canViewAllProjects: true,
+    canViewAllProposals: true,
+    canApproveProposals: true,
+    canAdvanceWorkflow: true,
     canApproveAwards: false,
     canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: false,
+  },
+  [ROLES.STATE_NODAL]: {
+    canViewNationalDashboard: false,
+    canViewAllProjects: true,
+    canViewAllProposals: true,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
+    canApproveAwards: false,
+    canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: false,
   },
   [ROLES.DISTRICT_COLLECTOR]: {
     canViewNationalDashboard: false,
     canViewAllProjects: false,
+    canViewAllProposals: false,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
     canApproveAwards: true,
     canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: false,
+  },
+  [ROLES.LAND_ACQUIRING_BODY]: {
+    canViewNationalDashboard: false,
+    canViewAllProjects: false,
+    canViewAllProposals: false,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
+    canApproveAwards: false,
+    canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: false,
+  },
+  [ROLES.LAND_REVENUE_OFFICER]: {
+    canViewNationalDashboard: false,
+    canViewAllProjects: false,
+    canViewAllProposals: false,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
+    canApproveAwards: false,
+    canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: false,
+  },
+  [ROLES.TEHSILDAR]: {
+    canViewNationalDashboard: false,
+    canViewAllProjects: false,
+    canViewAllProposals: false,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
+    canApproveAwards: false,
+    canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: false,
+  },
+  [ROLES.RR_OFFICER]: {
+    canViewNationalDashboard: false,
+    canViewAllProjects: false,
+    canViewAllProposals: false,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
+    canApproveAwards: false,
+    canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: false,
+  },
+  [ROLES.FINANCE_OFFICER]: {
+    canViewNationalDashboard: false,
+    canViewAllProjects: false,
+    canViewAllProposals: false,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
+    canApproveAwards: false,
+    canDisburseCompensation: true,
+    canManageUsers: false,
+    canViewOwnParcels: false,
   },
   [ROLES.CITIZEN]: {
     canViewNationalDashboard: false,
     canViewAllProjects: false,
+    canViewAllProposals: false,
+    canApproveProposals: false,
+    canAdvanceWorkflow: false,
     canApproveAwards: false,
     canDisburseCompensation: false,
+    canManageUsers: false,
+    canViewOwnParcels: true,
+  },
+  [ROLES.SYSTEM_ADMIN]: {
+    canViewNationalDashboard: true,
+    canViewAllProjects: true,
+    canViewAllProposals: true,
+    canApproveProposals: true,
+    canAdvanceWorkflow: true,
+    canApproveAwards: true,
+    canDisburseCompensation: true,
+    canManageUsers: true,
+    canViewOwnParcels: false,
   },
 } as const
 
+export function hasPermission(
+  role: Role,
+  permission: keyof typeof rolePermissions[Role]
+): boolean {
+  return rolePermissions[role]?.[permission] ?? false
+}
