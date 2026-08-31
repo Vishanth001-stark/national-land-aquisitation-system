@@ -14,6 +14,14 @@ const createProposalSchema = z.object({
   purpose: z.string().min(3, 'Purpose is required').max(500),
 })
 
+const createProjectProposalSchema = z.object({
+  proposalCode: z.string().min(3).max(50),
+  title: z.string().min(3).max(200),
+  sponsoringMinistry: z.string().min(2).max(100),
+  category: z.enum(['GREENFIELD', 'BROWNFIELD']).default('GREENFIELD'),
+  estimatedBudgetCr: z.number().positive(),
+})
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -23,6 +31,58 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+
+    // 1. Check if it's an infrastructure ProjectProposal
+    if (body.sponsoringMinistry || body.proposalCode) {
+      const parsed = createProjectProposalSchema.safeParse(body)
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: parsed.error.flatten().fieldErrors },
+          { status: 400 }
+        )
+      }
+
+      const { proposalCode, title, sponsoringMinistry, category, estimatedBudgetCr } = parsed.data
+
+      // Create ProjectProposal and seed clearances in a transaction
+      const proposal = await prisma.$transaction(async (tx) => {
+        const p = await tx.projectProposal.create({
+          data: {
+            proposalCode,
+            title,
+            sponsoringMinistry,
+            category,
+            estimatedBudgetCr,
+            status: 'PROPOSAL_DRAFT',
+          },
+        })
+
+        // Seed default statutory clearances checklist
+        const clearanceTypes = [
+          'FOREST_STAGE_1',
+          'FOREST_STAGE_2',
+          'EIA_TOR',
+          'EIA_PUBLIC_HEARING',
+          'EIA_FINAL',
+          'RAILWAY_NOC',
+          'UTILITY_PWD',
+        ]
+
+        await tx.statutoryClearance.createMany({
+          data: clearanceTypes.map((type) => ({
+            proposalId: p.id,
+            clearanceType: type,
+            status: 'NOT_APPLIED',
+          })),
+        })
+
+        return p
+      })
+
+      return NextResponse.json(proposal, { status: 201 })
+    }
+
+    // 2. Default to standard Proposal
     const parsed = createProposalSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -48,8 +108,14 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(proposal, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating proposal:', error)
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Proposal code already exists' },
+        { status: 409 }
+      )
+    }
     return NextResponse.json(
       { error: 'Failed to create proposal' },
       { status: 500 }
@@ -69,7 +135,43 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)))
     const skip = (page - 1) * limit
+    const type = searchParams.get('type') // 'infra' or standard
 
+    // Handle infrastructure proposals
+    if (type === 'infra') {
+      const [proposals, total] = await Promise.all([
+        prisma.projectProposal.findMany({
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+          include: {
+            alignments: {
+              select: {
+                id: true,
+                alignmentName: true,
+                isPreferred: true,
+                clearanceRiskScore: true,
+              },
+            },
+            clearances: true,
+            financialSanction: true,
+          },
+        }),
+        prisma.projectProposal.count(),
+      ])
+
+      return NextResponse.json({
+        data: proposals,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      })
+    }
+
+    // Default: handle standard citizen proposals
     const isAdmin =
       session.user.role === ROLES.CENTRAL_MINISTRY ||
       session.user.role === ROLES.SYSTEM_ADMIN ||
@@ -111,4 +213,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+}

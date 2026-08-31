@@ -263,3 +263,90 @@ model Proposal {
   @@map("proposals")
 }
 
+model ProjectProposal {
+  id                 String             @id @default(uuid())
+  proposalCode       String             @unique @map("proposal_code")
+  title              String
+  sponsoringMinistry String             @map("sponsoring_ministry")
+  category           String             @default("GREENFIELD")
+  estimatedBudgetCr  Decimal            @map("estimated_budget_cr")
+  status             String             @default("PROPOSAL_DRAFT")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  alignments         ProposalAlignment[]
+  clearances         StatutoryClearance[]
+  financialSanction  FinancialSanction?
+
+  @@map("project_proposals")
+}
+
+model ProposalAlignment {
+  id                 String             @id @default(uuid())
+  proposalId         String             @map("proposal_id")
+  proposal           ProjectProposal    @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  alignmentName      String             @map("alignment_name")
+  isPreferred        Boolean            @default(false) @map("is_preferred")
+  bufferWidthMeters  Int                @default(60) @map("buffer_width_meters")
+  centerlineGeom     Unsupported("geometry(LineString, 4326)")? @map("centerline_geom")
+  corridorGeom       Unsupported("geometry(Polygon, 4326)")? @map("corridor_geom")
+  totalLengthKm      Decimal?           @map("total_length_km")
+  forestOverlapHa    Decimal?           @default(0) @map("forest_overlap_ha")
+  waterbodyOverlapHa Decimal?           @default(0) @map("waterbody_overlap_ha")
+  clearanceRiskScore String?            @map("clearance_risk_score")
+
+  @@map("proposal_alignments")
+}
+
+model StatutoryClearance {
+  id            String          @id @default(uuid())
+  proposalId    String          @map("proposal_id")
+  proposal      ProjectProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  clearanceType String          @map("clearance_type")
+  status        String          @default("NOT_APPLIED")
+  referenceNo   String?         @map("reference_no")
+  submittedDate DateTime?       @map("submitted_date")
+  approvalDate  DateTime?       @map("approval_date")
+  remarks       String?
+
+  @@map("statutory_clearances")
+}
+
+model FinancialSanction {
+  id                       String          @id @default(uuid())
+  proposalId               String          @unique @map("proposal_id")
+  proposal                 ProjectProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  sanctionOrderNo          String          @map("sanction_order_no")
+  sanctionedAmountCr       Decimal         @map("sanctioned_amount_cr")
+  landAcquisitionBudgetCr  Decimal         @map("land_acquisition_budget_cr")
+  civilWorksBudgetCr       Decimal         @map("civil_works_budget_cr")
+  sanctioningAuthority     String          @map("sanctioning_authority")
+  sanctionDate             DateTime        @map("sanction_date")
+  documentHash             String?         @map("document_hash")
+
+  @@map("financial_sanctions")
+}
+
+model ForestZone {
+  id   String @id @default(uuid())
+  name String
+  geom Unsupported("geometry(MultiPolygon, 4326)")
+
+  @@map("forest_zones")
+}
+
+model WaterBody {
+  id   String @id @default(uuid())
+  name String
+  geom Unsupported("geometry(MultiPolygon, 4326)")
+
+  @@map("water_bodies")
+}
+
+model UtilityCrossing {
+  id   String @id @default(uuid())
+  name String
+  geom Unsupported("geometry(MultiLineString, 4326)")
+
+  @@map("utility_crossings")
+}
+
+
