@@ -33,10 +33,10 @@ async function runTest() {
 
   console.log(`1. Ramesh Kumar owns ${rameshParcels.length} parcel(s):`)
   rameshParcels.forEach((p) => {
-    console.log(`   - Survey: ${p.surveyNumber} | Project: ${p.project.name} | Stage: ${p.project.workflowInstances[0].currentStage}`)
+    console.log(`   - Survey: ${p.surveyNumber} | Project: ${p.project?.name || 'N/A'} | Stage: ${p.project?.workflowInstances[0]?.currentStage || 'N/A'}`)
   })
 
-  if (rameshParcels.length === 0) throw new Error('Ramesh should own a parcel!')
+  if (rameshParcels.length === 0 || !rameshParcels[0].project) throw new Error('Ramesh should own a parcel linked to a project!')
   const initialStage = rameshParcels[0].project.workflowInstances[0].currentStage
 
   // 3. Query parcels for Sunita
@@ -56,7 +56,7 @@ async function runTest() {
 
   console.log(`2. Sunita Devi owns ${sunitaParcels.length} parcel(s):`)
   sunitaParcels.forEach((p) => {
-    console.log(`   - Survey: ${p.surveyNumber} | Project: ${p.project.name} | Stage: ${p.project.workflowInstances[0].currentStage}`)
+    console.log(`   - Survey: ${p.surveyNumber} | Project: ${p.project?.name || 'N/A'} | Stage: ${p.project?.workflowInstances[0]?.currentStage || 'N/A'}`)
   })
 
   // Verify privacy: Ramesh cannot see Sunita's parcel and vice versa
@@ -66,6 +66,7 @@ async function runTest() {
 
   // 4. Simulate Central Ministry advancing Ramesh's project workflow
   const targetProject = rameshParcels[0].project
+  if (!targetProject) throw new Error('Target project missing!')
   const workflowInst = targetProject.workflowInstances[0]
 
   // Advance stage atomically
@@ -101,7 +102,7 @@ async function runTest() {
     },
   })
 
-  const newStageOnCitizenSide = updatedRameshParcels[0].project.workflowInstances[0].currentStage
+  const newStageOnCitizenSide = updatedRameshParcels[0]?.project?.workflowInstances[0]?.currentStage
   console.log(`5. Citizen Ramesh sees updated stage in real time: ${newStageOnCitizenSide}`)
 
   if (newStageOnCitizenSide !== nextStage) {

@@ -325,9 +325,308 @@ if (!jaipur) {
     })
   }
 
+  // Create candidate cadastral parcels for map-based land selection workflow across major Indian cities/districts
+  const candidateParcels = [
+    // Jaipur, Rajasthan
+    {
+      ulpin: 'ULPIN-RJ-JPR-101',
+      surveyNumber: 'KH-101/A',
+      areaHectares: 12.5,
+      landType: 'agricultural',
+      ownerName: 'Ramesh Kumar',
+      ownerId: citizen1.id,
+      compensationAmount: 15000000,
+      latitude: 26.9100,
+      longitude: 75.7850,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [75.7830, 26.9080],
+            [75.7870, 26.9080],
+            [75.7870, 26.9120],
+            [75.7830, 26.9120],
+            [75.7830, 26.9080]
+          ]
+        ]
+      }
+    },
+    {
+      ulpin: 'ULPIN-RJ-JPR-102',
+      surveyNumber: 'KH-102/B',
+      areaHectares: 18.0,
+      landType: 'agricultural',
+      ownerName: 'Sunita Devi',
+      ownerId: citizen2.id,
+      compensationAmount: 21000000,
+      latitude: 26.9100,
+      longitude: 75.7900,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [75.7870, 26.9080],
+            [75.7930, 26.9080],
+            [75.7930, 26.9120],
+            [75.7870, 26.9120],
+            [75.7870, 26.9080]
+          ]
+        ]
+      }
+    },
+    {
+      ulpin: 'ULPIN-RJ-JPR-103',
+      surveyNumber: 'KH-103/C',
+      areaHectares: 8.4,
+      landType: 'residential',
+      ownerName: 'Mohan Lal',
+      ownerId: citizen3.id,
+      compensationAmount: 18000000,
+      latitude: 26.9100,
+      longitude: 75.7970,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [75.7930, 26.9080],
+            [75.8010, 26.9080],
+            [75.8010, 26.9120],
+            [75.7930, 26.9120],
+            [75.7930, 26.9080]
+          ]
+        ]
+      }
+    },
+    {
+      ulpin: 'ULPIN-RJ-JPR-104',
+      surveyNumber: 'KH-104/D',
+      areaHectares: 15.2,
+      landType: 'commercial',
+      ownerName: 'Rajesh Sharma',
+      ownerId: null,
+      compensationAmount: 32000000,
+      latitude: 26.9160,
+      longitude: 75.7850,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [75.7830, 26.9120],
+            [75.7870, 26.9120],
+            [75.7870, 26.9200],
+            [75.7830, 26.9200],
+            [75.7830, 26.9120]
+          ]
+        ]
+      }
+    },
+    // Delhi NCR
+    {
+      ulpin: 'ULPIN-DL-DEL-201',
+      surveyNumber: 'SY-DL-201',
+      areaHectares: 14.5,
+      landType: 'commercial',
+      ownerName: 'Amitabh Sen',
+      ownerId: null,
+      compensationAmount: 45000000,
+      latitude: 28.6100,
+      longitude: 77.2050,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [77.2000, 28.6050],
+            [77.2100, 28.6050],
+            [77.2100, 28.6150],
+            [77.2000, 28.6150],
+            [77.2000, 28.6050]
+          ]
+        ]
+      }
+    },
+    {
+      ulpin: 'ULPIN-DL-DEL-202',
+      surveyNumber: 'SY-DL-202',
+      areaHectares: 21.0,
+      landType: 'industrial',
+      ownerName: 'Gurpreet Singh',
+      ownerId: null,
+      compensationAmount: 52000000,
+      latitude: 28.6100,
+      longitude: 77.2150,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [77.2100, 28.6050],
+            [77.2200, 28.6050],
+            [77.2200, 28.6150],
+            [77.2100, 28.6150],
+            [77.2100, 28.6050]
+          ]
+        ]
+      }
+    },
+    // Mumbai, Maharashtra
+    {
+      ulpin: 'ULPIN-MH-MUM-301',
+      surveyNumber: 'SY-MH-301',
+      areaHectares: 11.2,
+      landType: 'commercial',
+      ownerName: 'Nitin Kulkarni',
+      ownerId: null,
+      compensationAmount: 68000000,
+      latitude: 19.0750,
+      longitude: 72.8750,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [72.8700, 19.0700],
+            [72.8800, 19.0700],
+            [72.8800, 19.0800],
+            [72.8700, 19.0800],
+            [72.8700, 19.0700]
+          ]
+        ]
+      }
+    },
+    {
+      ulpin: 'ULPIN-MH-MUM-302',
+      surveyNumber: 'SY-MH-302',
+      areaHectares: 16.8,
+      landType: 'residential',
+      ownerName: 'Ananya Mehta',
+      ownerId: null,
+      compensationAmount: 74000000,
+      latitude: 19.0750,
+      longitude: 72.8850,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [72.8800, 19.0700],
+            [72.8900, 19.0700],
+            [72.8900, 19.0800],
+            [72.8800, 19.0800],
+            [72.8800, 19.0700]
+          ]
+        ]
+      }
+    },
+    // Bengaluru, Karnataka
+    {
+      ulpin: 'ULPIN-KA-BLR-401',
+      surveyNumber: 'SY-KA-401',
+      areaHectares: 19.4,
+      landType: 'agricultural',
+      ownerName: 'Kavitha Gowda',
+      ownerId: null,
+      compensationAmount: 38000000,
+      latitude: 12.9700,
+      longitude: 77.5900,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [77.5850, 12.9650],
+            [77.5950, 12.9650],
+            [77.5950, 12.9750],
+            [77.5850, 12.9750],
+            [77.5850, 12.9650]
+          ]
+        ]
+      }
+    },
+    {
+      ulpin: 'ULPIN-KA-BLR-402',
+      surveyNumber: 'SY-KA-402',
+      areaHectares: 24.5,
+      landType: 'industrial',
+      ownerName: 'Suresh Reddy',
+      ownerId: null,
+      compensationAmount: 49000000,
+      latitude: 12.9700,
+      longitude: 77.6000,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [77.5950, 12.9650],
+            [77.6050, 12.9650],
+            [77.6050, 12.9750],
+            [77.5950, 12.9750],
+            [77.5950, 12.9650]
+          ]
+        ]
+      }
+    },
+    // Hyderabad, Telangana
+    {
+      ulpin: 'ULPIN-TS-HYD-501',
+      surveyNumber: 'SY-TS-501',
+      areaHectares: 17.3,
+      landType: 'commercial',
+      ownerName: 'Venkat Rao',
+      ownerId: null,
+      compensationAmount: 41000000,
+      latitude: 17.3850,
+      longitude: 78.4850,
+      isCandidate: true,
+      geometryJson: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [78.4800, 17.3800],
+            [78.4900, 17.3800],
+            [78.4900, 17.3900],
+            [78.4800, 17.3900],
+            [78.4800, 17.3800]
+          ]
+        ]
+      }
+    }
+  ]
+
+  for (const parcel of candidateParcels) {
+    const existing = await prisma.landParcel.findFirst({
+      where: { ulpin: parcel.ulpin }
+    })
+
+    if (!existing) {
+      await prisma.landParcel.create({
+        data: {
+          ulpin: parcel.ulpin,
+          surveyNumber: parcel.surveyNumber,
+          areaHectares: parcel.areaHectares,
+          landType: parcel.landType as any,
+          ownerName: parcel.ownerName,
+          ownerId: parcel.ownerId,
+          compensationAmount: parcel.compensationAmount,
+          possessionStatus: 'NOT_ACQUIRED',
+          latitude: parcel.latitude,
+          longitude: parcel.longitude,
+          isCandidate: parcel.isCandidate,
+          geometryJson: parcel.geometryJson,
+        }
+      })
+    }
+  }
+
   console.log('✅ Seeding completed!')
   console.log(`Created ${await prisma.user.count()} users`)
   console.log(`Created ${await prisma.project.count()} projects`)
+  console.log(`Created ${await prisma.landParcel.count()} land parcels`)
   console.log(`Created ${await prisma.auditLog.count()} audit logs`)
 }
 

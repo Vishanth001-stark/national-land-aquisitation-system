@@ -95,6 +95,7 @@ model User {
   proposals Proposal[] @relation("SubmittedProposals")
   auditLogs AuditLog[]
   ownedLandParcels LandParcel[] @relation("ParcelOwner")
+  invitationsCreated Invitation[] @relation("InvitationCreator")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -180,8 +181,8 @@ model WorkflowInstance {
 
 model LandParcel {
   id               String          @id @default(uuid())
-  projectId        String
-  project          Project         @relation(fields: [projectId], references: [id])
+  projectId        String?
+  project          Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
   ulpin            String?
   surveyNumber     String?
   areaHectares     Decimal?
@@ -193,12 +194,33 @@ model LandParcel {
   possessionStatus PossessionStatus @default(NOT_ACQUIRED)
   latitude         Decimal?
   longitude        Decimal?
+  geometryJson     Json?
+  isCandidate      Boolean         @default(false)
+  invitations      Invitation[]
   createdAt        DateTime        @default(now())
 
   compensationRecords CompensationRecord[]
 
   @@index([ownerId])
   @@map("land_parcels")
+}
+
+model Invitation {
+  id           String      @id @default(uuid())
+  code         String      @unique
+  landParcelId String
+  landParcel   LandParcel  @relation(fields: [landParcelId], references: [id], onDelete: Cascade)
+  ownerName    String
+  ownerPhone   String?
+  ownerEmail   String?
+  status       String      @default("PENDING")
+  expiresAt    DateTime
+  createdById  String
+  createdBy    User        @relation("InvitationCreator", fields: [createdById], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("invitations")
 }
 
 model Document {
