@@ -20,6 +20,8 @@ const createProjectProposalSchema = z.object({
   sponsoringMinistry: z.string().min(2).max(100),
   category: z.enum(['GREENFIELD', 'BROWNFIELD']).default('GREENFIELD'),
   estimatedBudgetCr: z.number().positive(),
+  stateId: z.string().nullable().optional(),
+  districtId: z.string().nullable().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const { proposalCode, title, sponsoringMinistry, category, estimatedBudgetCr } = parsed.data
+      const { proposalCode, title, sponsoringMinistry, category, estimatedBudgetCr, stateId, districtId } = parsed.data
 
       // Create ProjectProposal and seed clearances in a transaction
       const proposal = await prisma.$transaction(async (tx) => {
@@ -53,6 +55,8 @@ export async function POST(request: NextRequest) {
             sponsoringMinistry,
             category,
             estimatedBudgetCr,
+            stateId: stateId || null,
+            districtId: districtId || null,
             status: 'PROPOSAL_DRAFT',
           },
         })
@@ -145,6 +149,8 @@ export async function GET(request: NextRequest) {
           skip,
           take: limit,
           include: {
+            state: { select: { id: true, name: true, code: true } },
+            district: { select: { id: true, name: true } },
             alignments: {
               select: {
                 id: true,
@@ -206,10 +212,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching proposals:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch proposals' },
+      { error: 'Failed to fetch proposals', details: error?.message || String(error) },
       { status: 500 }
     )
   }

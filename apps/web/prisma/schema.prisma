@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -117,6 +118,7 @@ model State {
   districts District[]
   users     User[]
   projects  Project[]
+  projectProposals ProjectProposal[]
   createdAt DateTime   @default(now())
 
   @@map("states")
@@ -129,6 +131,7 @@ model District {
   state     State    @relation(fields: [stateId], references: [id])
   users     User[]
   projects  Project[]
+  projectProposals ProjectProposal[]
   createdAt DateTime @default(now())
 
   @@map("districts")
@@ -271,6 +274,11 @@ model ProjectProposal {
   category           String             @default("GREENFIELD")
   estimatedBudgetCr  Decimal            @map("estimated_budget_cr")
   status             String             @default("PROPOSAL_DRAFT")
+  projectId          String?            @map("project_id")
+  stateId            String?            @map("state_id")
+  state              State?             @relation(fields: [stateId], references: [id])
+  districtId         String?            @map("district_id")
+  district           District?          @relation(fields: [districtId], references: [id])
   createdAt          DateTime           @default(now()) @map("created_at")
   alignments         ProposalAlignment[]
   clearances         StatutoryClearance[]

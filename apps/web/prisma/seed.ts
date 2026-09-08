@@ -129,187 +129,201 @@ if (!jaipur) {
     },
   })
 
-  // Create 3 realistic projects (parcels) with different stages
-  const project1 = await prisma.project.create({
-    data: {
-      name: 'National Highway Expansion - NH-48',
-      acquiringBodyId: null,
-      projectType: 'highway',
-      stateId: rajasthan.id,
-      districtId: jaipur.id,
-      status: 'IN_PROGRESS',
-      totalAreaHectares: 18.5,
-      estimatedCost: 15000000,
-      createdBy: admin.id,
-      workflowInstances: {
-        create: {
-          currentStage: 'PRELIMINARY_NOTIFICATION',
-          status: 'IN_PROGRESS',
+  // Create 3 realistic projects (parcels) with different stages (idempotent)
+  let project1 = await prisma.project.findFirst({
+    where: { name: 'National Highway Expansion - NH-48' },
+  })
+  if (!project1) {
+    project1 = await prisma.project.create({
+      data: {
+        name: 'National Highway Expansion - NH-48',
+        acquiringBodyId: null,
+        projectType: 'highway',
+        stateId: rajasthan.id,
+        districtId: jaipur.id,
+        status: 'IN_PROGRESS',
+        totalAreaHectares: 18.5,
+        estimatedCost: 15000000,
+        createdBy: admin.id,
+        workflowInstances: {
+          create: {
+            currentStage: 'PRELIMINARY_NOTIFICATION',
+            status: 'IN_PROGRESS',
+          },
+        },
+        landParcels: {
+          create: {
+            surveyNumber: 'KH-45/2, KH-45/3',
+            areaHectares: 18.5,
+            landType: 'agricultural',
+            ownerName: 'Ramesh Kumar',
+            ownerId: citizen1.id,
+            compensationAmount: 12500000,
+            possessionStatus: 'NOT_ACQUIRED',
+            latitude: 26.9124,
+            longitude: 75.7873,
+          },
         },
       },
-      landParcels: {
-        create: {
-          surveyNumber: 'KH-45/2, KH-45/3',
-          areaHectares: 18.5,
-          landType: 'agricultural',
-          ownerName: 'Ramesh Kumar',
-          ownerId: citizen1.id,
-          compensationAmount: 12500000,
-          possessionStatus: 'NOT_ACQUIRED',
-          latitude: 26.9124,
-          longitude: 75.7873,
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'PROJECT_CREATED',
+        entityType: 'Project',
+        entityId: project1.id,
+      },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'STAGE_ADVANCED:SIA->PRELIMINARY_NOTIFICATION',
+        entityType: 'Project',
+        entityId: project1.id,
+      },
+    })
+  }
+
+  let project2 = await prisma.project.findFirst({
+    where: { name: 'Industrial Corridor - Phase 2' },
+  })
+  if (!project2) {
+    project2 = await prisma.project.create({
+      data: {
+        name: 'Industrial Corridor - Phase 2',
+        acquiringBodyId: null,
+        projectType: 'industrial_corridor',
+        stateId: rajasthan.id,
+        districtId: jaipur.id,
+        status: 'IN_PROGRESS',
+        totalAreaHectares: 48.0,
+        estimatedCost: 42000000,
+        createdBy: admin.id,
+        workflowInstances: {
+          create: {
+            currentStage: 'DECLARATION',
+            status: 'IN_PROGRESS',
+          },
+        },
+        landParcels: {
+          create: {
+            surveyNumber: 'KH-78/1, KH-78/2, KH-79/1',
+            areaHectares: 48.0,
+            landType: 'wasteland',
+            ownerName: 'Sunita Devi',
+            ownerId: citizen2.id,
+            compensationAmount: 35000000,
+            possessionStatus: 'NOT_ACQUIRED',
+            latitude: 26.8467,
+            longitude: 75.8023,
+          },
         },
       },
-    },
-  })
+    })
 
-  const project2 = await prisma.project.create({
-    data: {
-      name: 'Industrial Corridor - Phase 2',
-      acquiringBodyId: null,
-      projectType: 'industrial_corridor',
-      stateId: rajasthan.id,
-      districtId: jaipur.id,
-      status: 'IN_PROGRESS',
-      totalAreaHectares: 48.0,
-      estimatedCost: 42000000,
-      createdBy: admin.id,
-      workflowInstances: {
-        create: {
-          currentStage: 'DECLARATION',
-          status: 'IN_PROGRESS',
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'PROJECT_CREATED',
+        entityType: 'Project',
+        entityId: project2.id,
+      },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'STAGE_ADVANCED:SIA->PRELIMINARY_NOTIFICATION',
+        entityType: 'Project',
+        entityId: project2.id,
+      },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'STAGE_ADVANCED:PRELIMINARY_NOTIFICATION->DECLARATION',
+        entityType: 'Project',
+        entityId: project2.id,
+      },
+    })
+  }
+
+  let project3 = await prisma.project.findFirst({
+    where: { name: 'Railway Station Modernization' },
+  })
+  if (!project3) {
+    project3 = await prisma.project.create({
+      data: {
+        name: 'Railway Station Modernization',
+        acquiringBodyId: null,
+        projectType: 'railway',
+        stateId: rajasthan.id,
+        districtId: jaipur.id,
+        status: 'IN_PROGRESS',
+        totalAreaHectares: 31.3,
+        estimatedCost: 28000000,
+        createdBy: admin.id,
+        workflowInstances: {
+          create: {
+            currentStage: 'AWARD',
+            status: 'IN_PROGRESS',
+          },
+        },
+        landParcels: {
+          create: {
+            surveyNumber: 'KH-92/1, KH-92/2',
+            areaHectares: 31.3,
+            landType: 'residential',
+            ownerName: 'Mohan Lal',
+            ownerId: citizen3.id,
+            compensationAmount: 22000000,
+            possessionStatus: 'ACQUIRED',
+            latitude: 26.9239,
+            longitude: 75.8235,
+          },
         },
       },
-      landParcels: {
-        create: {
-          surveyNumber: 'KH-78/1, KH-78/2, KH-79/1',
-          areaHectares: 48.0,
-          landType: 'wasteland',
-          ownerName: 'Sunita Devi',
-          ownerId: citizen2.id,
-          compensationAmount: 35000000,
-          possessionStatus: 'NOT_ACQUIRED',
-          latitude: 26.8467,
-          longitude: 75.8023,
-        },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'PROJECT_CREATED',
+        entityType: 'Project',
+        entityId: project3.id,
       },
-    },
-  })
+    })
 
-  const project3 = await prisma.project.create({
-    data: {
-      name: 'Railway Station Modernization',
-      acquiringBodyId: null,
-      projectType: 'railway',
-      stateId: rajasthan.id,
-      districtId: jaipur.id,
-      status: 'IN_PROGRESS',
-      totalAreaHectares: 31.3,
-      estimatedCost: 28000000,
-      createdBy: admin.id,
-      workflowInstances: {
-        create: {
-          currentStage: 'AWARD',
-          status: 'IN_PROGRESS',
-        },
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'STAGE_ADVANCED:SIA->PRELIMINARY_NOTIFICATION',
+        entityType: 'Project',
+        entityId: project3.id,
       },
-      landParcels: {
-        create: {
-          surveyNumber: 'KH-92/1, KH-92/2',
-          areaHectares: 31.3,
-          landType: 'residential',
-          ownerName: 'Mohan Lal',
-          ownerId: citizen3.id,
-          compensationAmount: 22000000,
-          possessionStatus: 'ACQUIRED',
-          latitude: 26.9239,
-          longitude: 75.8235,
-        },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'STAGE_ADVANCED:PRELIMINARY_NOTIFICATION->DECLARATION',
+        entityType: 'Project',
+        entityId: project3.id,
       },
-    },
-  })
+    })
 
-  // Create audit logs for each project
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'PROJECT_CREATED',
-      entityType: 'Project',
-      entityId: project1.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'STAGE_ADVANCED:SIA->PRELIMINARY_NOTIFICATION',
-      entityType: 'Project',
-      entityId: project1.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'PROJECT_CREATED',
-      entityType: 'Project',
-      entityId: project2.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'STAGE_ADVANCED:SIA->PRELIMINARY_NOTIFICATION',
-      entityType: 'Project',
-      entityId: project2.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'STAGE_ADVANCED:PRELIMINARY_NOTIFICATION->DECLARATION',
-      entityType: 'Project',
-      entityId: project2.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'PROJECT_CREATED',
-      entityType: 'Project',
-      entityId: project3.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'STAGE_ADVANCED:SIA->PRELIMINARY_NOTIFICATION',
-      entityType: 'Project',
-      entityId: project3.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'STAGE_ADVANCED:PRELIMINARY_NOTIFICATION->DECLARATION',
-      entityType: 'Project',
-      entityId: project3.id,
-    },
-  })
-
-  await prisma.auditLog.create({
-    data: {
-      userId: admin.id,
-      action: 'STAGE_ADVANCED:DECLARATION->AWARD',
-      entityType: 'Project',
-      entityId: project3.id,
-    },
-  })
+    await prisma.auditLog.create({
+      data: {
+        userId: admin.id,
+        action: 'STAGE_ADVANCED:DECLARATION->AWARD',
+        entityType: 'Project',
+        entityId: project3.id,
+      },
+    })
+  }
 
   console.log('✅ Seeding completed!')
   console.log(`Created ${await prisma.user.count()} users`)

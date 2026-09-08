@@ -18,7 +18,7 @@ export const roleHierarchy = {
 }
 
 export function useRole() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const userRole = session?.user?.role as keyof typeof roleHierarchy | undefined
 
   /**
@@ -44,7 +44,8 @@ export function useRole() {
     role: userRole,
     hasRole,
     isAtLeastRole,
-    isAuthenticated: !!session,
+    isAuthenticated: status === 'authenticated',
+    isLoading: status === 'loading',
   }
 }
 

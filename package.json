@@ -1,0 +1,14 @@
+{
+  "name": "national-land-acquisition-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix apps/web",
+    "build": "npm run build --prefix apps/web",
+    "start": "npm run start --prefix apps/web",
+    "lint": "npm run lint --prefix apps/web",
+    "postinstall": "npm run postinstall --prefix apps/web",
+    "db:push": "npm run db:push --prefix apps/web",
+    "db:seed": "npm run db:seed --prefix apps/web"
+  }
+}

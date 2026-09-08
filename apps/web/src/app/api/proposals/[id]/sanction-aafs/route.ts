@@ -12,6 +12,8 @@ const financialSanctionSchema = z.object({
   civilWorksBudgetCr: z.number().positive(),
   sanctioningAuthority: z.string().min(2).max(100),
   sanctionDate: z.string(),
+  stateId: z.string().nullable().optional(),
+  districtId: z.string().nullable().optional(),
   documentHash: z.string().nullable().optional(),
 })
 
@@ -32,17 +34,24 @@ export async function POST(
       return NextResponse.json({ error: 'Proposal ID is required' }, { status: 400 })
     }
 
-    // Retrieve proposal with its clearances and alignments
+    // Retrieve proposal with its clearances, alignments, state, and district
     const proposal = await prisma.projectProposal.findUnique({
       where: { id: proposalId },
       include: {
         clearances: true,
         alignments: true,
+        state: true,
+        district: true,
       },
     })
 
     if (!proposal) {
       return NextResponse.json({ error: 'Proposal not found' }, { status: 404 })
+    }
+
+    // Check if it's already sanctioned
+    if (proposal.status === 'AA_FS_SANCTIONED') {
+      return NextResponse.json({ error: 'Proposal is already sanctioned with active AA&FS order.' }, { status: 409 })
     }
 
     const body = await request.json()
@@ -62,23 +71,12 @@ export async function POST(
       civilWorksBudgetCr,
       sanctioningAuthority,
       sanctionDate,
+      stateId,
+      districtId,
       documentHash,
     } = parsed.data
 
-    // GATEKEEPER 1: Verify all mandatory clearances are APPROVED
-    const totalClearances = proposal.clearances.length
-    const approvedClearances = proposal.clearances.filter((c) => c.status === 'APPROVED').length
-
-    if (approvedClearances < totalClearances) {
-      return NextResponse.json(
-        {
-          error: `Clearance Gate Block: All ${totalClearances} mandatory clearances must be approved before financial sanction. Currently approved: ${approvedClearances}/${totalClearances}.`,
-        },
-        { status: 400 }
-      )
-    }
-
-    // GATEKEEPER 2: Verify a preferred alignment has been selected
+    // GATEKEEPER 1: Preferred Corridor Alignment must be locked
     const preferredAlignment = proposal.alignments.find((a) => a.isPreferred)
     if (!preferredAlignment) {
       return NextResponse.json(
@@ -87,23 +85,45 @@ export async function POST(
       )
     }
 
-    // Check if it's already sanctioned
-    if (proposal.status === 'AA_FS_SANCTIONED') {
-      return NextResponse.json({ error: 'Proposal is already sanctioned' }, { status: 409 })
+    // GATEKEEPER 2: In-Principle Clearances Vetted
+    const approvedClearances = proposal.clearances.filter((c) => c.status === 'APPROVED')
+    if (approvedClearances.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'Statutory Clearance Gate Block: In-Principle Statutory Approvals (Forest Stage-1 / EIA ToR / Railway NOC) must be approved before financial sanction. Please use the Fast-Track In-Principle Clearances action or update individual milestones.',
+        },
+        { status: 400 }
+      )
     }
 
-    // Fetch fallback district and state for Project Creation
-    const fallbackDistrict = await prisma.district.findFirst({
-      include: { state: true },
-      orderBy: { createdAt: 'asc' },
-    })
+    // Dynamically resolve target City / District and State for Project Creation
+    let targetDistrictId = districtId || proposal.districtId
+    let targetStateId = stateId || proposal.stateId
 
-    if (!fallbackDistrict) {
+    let resolvedDistrict = null
+    if (targetDistrictId) {
+      resolvedDistrict = await prisma.district.findUnique({
+        where: { id: targetDistrictId },
+        include: { state: true },
+      })
+    }
+
+    if (!resolvedDistrict) {
+      resolvedDistrict = await prisma.district.findFirst({
+        include: { state: true },
+        orderBy: { createdAt: 'asc' },
+      })
+    }
+
+    if (!resolvedDistrict) {
       return NextResponse.json(
         { error: 'System Configuration Error: No state or district configured in the database to link the project.' },
         { status: 500 }
       )
     }
+
+    const finalDistrictId = resolvedDistrict.id
+    const finalStateId = targetStateId || resolvedDistrict.stateId
 
     // Resolve project type enum from category or title
     let pType: ProjectType = ProjectType.highway
@@ -118,9 +138,14 @@ export async function POST(
       pType = ProjectType.renewable_energy
     }
 
-    // Execute transaction: Record Sanction + Transition Proposal + Replicate as Project for downstream LA
+    // Calculate approximate area in hectares from corridor alignment
+    const corridorLengthKm = preferredAlignment.totalLengthKm ? Number(preferredAlignment.totalLengthKm) : 25
+    const bufferWidthM = preferredAlignment.bufferWidthMeters || 60
+    const calculatedAreaHa = Math.round((corridorLengthKm * 1000 * bufferWidthM * 2) / 10000)
+
+    // Execute transaction: Record Sanction + Create Project + Initialize Workflow at Stage SIA + Link Project to Proposal
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Financial Sanction
+      // 1. Create Financial Sanction Order Record
       const sanction = await tx.financialSanction.create({
         data: {
           proposalId,
@@ -134,42 +159,48 @@ export async function POST(
         },
       })
 
-      // 2. Update Proposal Status
-      const updatedProposal = await tx.projectProposal.update({
-        where: { id: proposalId },
-        data: { status: 'AA_FS_SANCTIONED' },
-      })
-
-      // 3. Create Project in Downstream Land Acquisition module
+      // 2. Initialize Downstream Land Acquisition Project with user's selected City/District and State
       const project = await tx.project.create({
         data: {
           name: proposal.title,
           projectType: pType,
-          stateId: fallbackDistrict.stateId,
-          districtId: fallbackDistrict.id,
+          stateId: finalStateId,
+          districtId: finalDistrictId,
           status: 'IN_PROGRESS',
-          totalAreaHectares: preferredAlignment.totalLengthKm ? new Prisma.Decimal(Number(preferredAlignment.totalLengthKm) * 6) : new Prisma.Decimal(100), // Approximate area estimate (length * width buffer)
+          totalAreaHectares: new Prisma.Decimal(calculatedAreaHa || 120),
           estimatedCost: new Prisma.Decimal(sanctionedAmountCr),
           createdBy: session.user.id,
-          // We can link it to the simple proposal or other fields if needed, but since Project is linked to Proposal model, let's keep it null or referential.
         },
       })
 
-      // 4. Create Workflow Instance at Stage SIA
+      // 3. Update Proposal: mark sanctioned and link downstream projectId, stateId, and districtId
+      const updatedProposal = await tx.projectProposal.update({
+        where: { id: proposalId },
+        data: {
+          status: 'AA_FS_SANCTIONED',
+          projectId: project.id,
+          stateId: finalStateId,
+          districtId: finalDistrictId,
+        },
+      })
+
+      // 4. Initialize Workflow Instance at Stage 1: SIA (Social Impact Assessment - Sec 4 RFCTLARR)
+      const siaDeadline = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000) // 180 days statutory window
       const workflow = await tx.workflowInstance.create({
         data: {
           projectId: project.id,
           currentStage: WorkflowStage.SIA,
           status: WorkflowStatus.IN_PROGRESS,
           startedAt: new Date(),
+          slaDeadline: siaDeadline,
         },
       })
 
-      // 5. Create Audit Log
+      // 5. Create Audit Log Entry
       await tx.auditLog.create({
         data: {
           userId: session.user.id,
-          action: `PROPOSAL_SANCTIONED_AND_PROJECT_INITIALIZED:${proposal.proposalCode}`,
+          action: `PROPOSAL_SANCTIONED_AND_PROJECT_INITIALIZED:${proposal.proposalCode} -> PROJECT:${project.id}`,
           entityType: 'ProjectProposal',
           entityId: proposalId,
         },
@@ -180,11 +211,18 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'AA&FS Financial Sanction registered and Project initialized at SIA stage.',
+      message: 'AA&FS Financial Sanction registered and Project initialized at SIA stage under RFCTLARR Act.',
       proposalId: result.updatedProposal.id,
       proposalStatus: result.updatedProposal.status,
       sanctionId: result.sanction.id,
       projectId: result.project.id,
+      project: {
+        id: result.project.id,
+        name: result.project.name,
+        currentStage: result.workflow.currentStage,
+        totalAreaHectares: result.project.totalAreaHectares,
+        estimatedCost: result.project.estimatedCost,
+      },
     })
   } catch (error) {
     console.error('Error creating financial sanction:', error)
