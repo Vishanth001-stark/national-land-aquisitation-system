@@ -52,10 +52,26 @@ interface ProjectItem {
   projectType: string
   status: string
   totalAreaHectares?: number | null
+  estimatedCost?: number | string | null
   state?: { name: string; code: string } | null
   district?: { name: string } | null
   workflowInstances: WorkflowInstance[]
   landParcels: LandParcel[]
+}
+
+function formatBudget(amount?: number | string | null) {
+  if (!amount) return '₹ 0'
+  const num = Number(amount)
+  if (isNaN(num) || num === 0) return '₹ 0'
+  if (num >= 10000000) {
+    const inCrores = num / 10000000
+    return `₹ ${inCrores.toLocaleString('en-IN', { maximumFractionDigits: 2 })} Cr`
+  } else if (num >= 100000) {
+    const inLakhs = num / 100000
+    return `₹ ${inLakhs.toLocaleString('en-IN', { maximumFractionDigits: 2 })} L`
+  } else {
+    return `₹ ${num.toLocaleString('en-IN')} Cr`
+  }
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -276,7 +292,10 @@ export default function CentralDashboard() {
                       Location
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Parcels
+                      Budget (CapEx)
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Parcels & Area
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Current Workflow Stage
@@ -305,8 +324,12 @@ export default function CentralDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {project.district?.name ? `${project.district.name}, ` : ''}{project.state?.name || 'N/A'}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className="font-bold text-blue-700 block">{formatBudget(project.estimatedCost)}</span>
+                          <span className="text-[11px] text-gray-400">Total Sanctioned</span>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {project.landParcels?.length || 0} parcel(s)
+                          <div className="font-medium text-gray-900">{project.landParcels?.length || 0} parcel(s)</div>
                           {project.totalAreaHectares && (
                             <span className="text-xs text-gray-400 block">{project.totalAreaHectares} Ha</span>
                           )}
