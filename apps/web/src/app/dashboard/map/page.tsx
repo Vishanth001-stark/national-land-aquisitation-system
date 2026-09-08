@@ -141,12 +141,12 @@ export default function MapPage() {
               <span class="font-semibold">${parcel.landType}</span>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-gray-200">
+          <div className="mt-4 pt-3 border-t border-gray-200">
             <button 
               onclick="window.verifyLand('${parcel.id}')"
-              class="w-full px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-semibold"
+              class="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold"
             >
-              🔍 Verify with BHUMI
+              🔍 Inspect Representative Land Record
             </button>
           </div>
         </div>
@@ -181,14 +181,14 @@ export default function MapPage() {
           setVerifying(null)
           setSelectedParcel(parcel)
         }
-      }, 1500)
+      }, 1000)
     }
   }, [parcels, loading])
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading map...</div>
+        <div className="text-gray-600 font-medium">Loading map...</div>
       </div>
     )
   }
@@ -199,16 +199,21 @@ export default function MapPage() {
         <div className="mb-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                🗺️ Land Parcels Map with BHUMI Integration
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                  Demo Parcel Data • Representative Cadastral Map
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                🗺️ Land Parcels & GIS Cadastral Map
               </h1>
-              <p className="text-gray-600">
-                Integrated with Karnataka BHUMI, ULMS, and ISRO Bhuvan
+              <p className="text-gray-600 text-sm">
+                Representative land-record data for statutory land acquisition tracking
               </p>
             </div>
             <button
               onClick={() => setShowSatellite(!showSatellite)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-semibold shadow-sm"
             >
               {showSatellite ? '🗺️ Map View' : '🛰️ Satellite View'}
             </button>
@@ -220,14 +225,14 @@ export default function MapPage() {
         </div>
 
         {selectedParcel && verifiedData[selectedParcel.id] && (
-          <div className="mt-6 bg-white rounded-lg shadow p-6">
+          <div className="mt-6 bg-white rounded-lg shadow p-6 border border-gray-200">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-900">
-                🏛️ BHUMI Land Records - {selectedParcel.title}
+                🏛️ Land Record Summary — {selectedParcel.title}
               </h2>
               <button
                 onClick={() => setSelectedParcel(null)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 font-bold text-sm"
               >
                 ✕ Close
               </button>
@@ -235,8 +240,8 @@ export default function MapPage() {
 
             {verifying === selectedParcel.id ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Fetching land records from BHUMI...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600 text-sm">Loading land record details...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -286,13 +291,13 @@ export default function MapPage() {
                       <p className="font-semibold">{verifiedData[selectedParcel.id].landUse}</p>
                     </div>
                     <div>
-                      <span className="text-gray-600">RTC Verified:</span>
-                      <p className="font-semibold text-green-600">✓ Yes</p>
+                      <span className="text-gray-600">Record Status:</span>
+                      <p className="font-semibold text-blue-600">Active Record</p>
                     </div>
                   </div>
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800">
-                      ✅ Land records verified successfully from Karnataka BHUMI database
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-900">
+                      ℹ️ <strong>Demo parcel data:</strong> In production, integrate authorized state land-record and approved notification services.
                     </p>
                   </div>
                 </div>
@@ -313,8 +318,8 @@ export default function MapPage() {
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Verified (BHUMI)</h3>
-            <p className="text-3xl font-bold text-green-600">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">Inspected Records</h3>
+            <p className="text-3xl font-bold text-indigo-600">
               {Object.keys(verifiedData).length}
             </p>
           </div>
@@ -326,24 +331,27 @@ export default function MapPage() {
           </div>
         </div>
 
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 mb-3">🔗 System Integrations</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="mt-6 bg-slate-900 text-white border border-slate-800 rounded-lg p-6 shadow-md">
+          <h3 className="font-semibold text-slate-200 mb-2">🔗 Land Record & Cadastral Feed Architecture</h3>
+          <p className="text-xs text-slate-400 mb-4">
+            Production: integrate authorized state land-record (DILRMP/State Revenue) and approved notification services.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-medium">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-700">Karnataka BHUMI</span>
+              <div className="w-2.5 h-2.5 bg-amber-400 rounded-full"></div>
+              <span className="text-slate-300">State Cadastral GIS Feeds</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-700">Karnataka ULMS</span>
+              <div className="w-2.5 h-2.5 bg-amber-400 rounded-full"></div>
+              <span className="text-slate-300">Statutory Notification Gateway</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-700">ISRO Bhuvan</span>
+              <div className="w-2.5 h-2.5 bg-amber-400 rounded-full"></div>
+              <span className="text-slate-300">PFMS Compensation Linkage</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <span className="text-gray-700">DILRMP (Ready)</span>
+              <div className="w-2.5 h-2.5 bg-blue-400 rounded-full"></div>
+              <span className="text-slate-300">DILRMP Standard Compliant</span>
             </div>
           </div>
         </div>

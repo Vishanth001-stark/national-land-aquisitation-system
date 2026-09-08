@@ -329,6 +329,12 @@ export default function CentralDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end items-center gap-2">
+                            <Link
+                              href={`/dashboard/projects/${project.id}/select-land`}
+                              className="px-3 py-1.5 text-xs font-semibold rounded-md bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition flex items-center gap-1"
+                            >
+                              🗺️ Select Land on Map
+                            </Link>
                             {isPossession ? (
                               <span className="text-xs px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md border border-gray-200 cursor-not-allowed">
                                 ✓ Completed

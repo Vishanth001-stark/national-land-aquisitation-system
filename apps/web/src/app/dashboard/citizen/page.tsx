@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import RoleGuard from '@/components/RoleGuard'
 import { ROLES } from '@/lib/roles'
 import { useSession } from 'next-auth/react'
+import Link from 'next/link'
 
 interface WorkflowInstance {
   id: string
@@ -89,16 +90,24 @@ export default function CitizenDashboard() {
                 Real-time statutory tracking for your notified land parcel(s). All information is read directly from official government records.
               </p>
             </div>
-            <button
-              onClick={() => {
-                setLoading(true)
-                setError(null)
-                fetchCitizenParcels()
-              }}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-lg text-xs font-semibold transition border border-white/20 flex items-center gap-2"
-            >
-              🔄 Refresh Status
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard/citizen/activate"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow flex items-center gap-1.5"
+              >
+                🔑 Redeem Invitation Code
+              </Link>
+              <button
+                onClick={() => {
+                  setLoading(true)
+                  setError(null)
+                  fetchCitizenParcels()
+                }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-lg text-xs font-semibold transition border border-white/20 flex items-center gap-2"
+              >
+                🔄 Refresh Status
+              </button>
+            </div>
           </div>
         </div>
 
@@ -114,14 +123,24 @@ export default function CitizenDashboard() {
             <p>Loading your verified land records...</p>
           </div>
         ) : parcels.length === 0 ? (
-          <div className="bg-white rounded-xl shadow p-12 text-center">
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+          <div className="bg-white rounded-xl shadow p-12 text-center space-y-4">
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto text-2xl">
               📋
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">No Land Parcels Under Acquisition</h3>
-            <p className="text-gray-500 text-sm max-w-md mx-auto">
-              There are currently no notified land parcels mapped to your account ({session?.user?.email}). If your land is part of an ongoing acquisition project, contact the District Collectorate.
-            </p>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">No Land Parcels Under Acquisition</h3>
+              <p className="text-gray-500 text-sm max-w-md mx-auto">
+                There are currently no notified land parcels mapped to your account ({session?.user?.email}). If you received an invitation code, activate it below.
+              </p>
+            </div>
+            <div>
+              <Link
+                href="/dashboard/citizen/activate"
+                className="inline-block px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow transition"
+              >
+                🔑 Activate Citizen Invitation Code
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="space-y-8">
