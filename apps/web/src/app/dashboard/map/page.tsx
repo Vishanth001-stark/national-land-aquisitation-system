@@ -1,11 +1,8 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
-
-
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 interface LandParcel {
   id: string
@@ -24,6 +21,7 @@ const cityCoords: Record<string, [number, number]> = {
   'Delhi': [28.6139, 77.2090],
   'Mumbai': [19.0760, 72.8777],
   'Bangalore': [12.9716, 77.5946],
+  'Bengaluru': [12.9716, 77.5946],
   'Chennai': [13.0827, 80.2707],
   'Kolkata': [22.5726, 88.3639],
   'Hyderabad': [17.3850, 78.4867],
@@ -39,7 +37,7 @@ const cityCoords: Record<string, [number, number]> = {
 
 export default function MapPage() {
   const mapContainer = useRef<HTMLDivElement>(null)
-  const map = useRef<mapboxgl.Map | null>(null)
+  const mapInstance = useRef<L.Map | null>(null)
   const [parcels, setParcels] = useState<LandParcel[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedParcel, setSelectedParcel] = useState<LandParcel | null>(null)
@@ -53,7 +51,7 @@ export default function MapPage() {
       .then((resData) => {
         const proposals = Array.isArray(resData) ? resData : resData?.data || []
         const parcelsWithCoords = proposals.map((proposal: any) => {
-          const matchedCity = Object.keys(cityCoords).find(city =>
+          const matchedCity = Object.keys(cityCoords).find((city) =>
             proposal.location.toLowerCase().includes(city.toLowerCase())
           )
           const [lat, lng] = matchedCity ? cityCoords[matchedCity] : [20.5937, 78.9629]
@@ -80,90 +78,83 @@ export default function MapPage() {
       })
   }, [])
 
+  // Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainer.current || loading) return
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: showSatellite
-        ? 'mapbox://styles/mapbox/satellite-streets-v12'
-        : 'mapbox://styles/mapbox/streets-v12',
-      center: [78.9629, 20.5937],
-      zoom: 5,
-    })
-
-    map.current.addControl(new mapboxgl.NavigationControl())
-    map.current.addControl(
-      new mapboxgl.ScaleControl({
-        maxWidth: 80,
-        unit: 'metric',
-      })
-    )
-
-    return () => {
-      map.current?.remove()
+    // Clean up existing map instance if any
+    if (mapInstance.current) {
+      mapInstance.current.remove()
+      mapInstance.current = null
     }
-  }, [loading, showSatellite])
 
-  useEffect(() => {
-    if (!map.current || !Array.isArray(parcels) || parcels.length === 0) return
+    // Default map center: India
+    const map = L.map(mapContainer.current).setView([22.5937, 78.9629], 5)
 
+    // Base Tile Layer (OpenStreetMap or Satellite)
+    const tileUrl = showSatellite
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+
+    const attribution = showSatellite
+      ? '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+      : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
+    L.tileLayer(tileUrl, {
+      maxZoom: 18,
+      attribution,
+    }).addTo(map)
+
+    // Custom Marker Icons
+    const createCustomIcon = (status: string) => {
+      const color = status === 'approved' ? '#16a34a' : status === 'rejected' ? '#dc2626' : '#2563eb'
+      return L.divIcon({
+        className: 'custom-leaflet-marker',
+        html: `<div style="background-color: ${color}; width: 24px; height: 24px; borderRadius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">📍</div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      })
+    }
+
+    // Add markers for parcels
     parcels.forEach((parcel) => {
-      const el = document.createElement('div')
-      el.className = `rounded-full p-3 cursor-pointer transition-all ${parcel.status === 'approved' ? 'bg-green-600 hover:bg-green-700' :
-          parcel.status === 'rejected' ? 'bg-red-600 hover:bg-red-700' :
-            'bg-blue-600 hover:bg-blue-700'
-        }`
-      el.innerHTML = `
-        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-        </svg>
-      `
+      if (parcel.latitude && parcel.longitude) {
+        const marker = L.marker([parcel.latitude, parcel.longitude], {
+          icon: createCustomIcon(parcel.status),
+        }).addTo(map)
 
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: true }).setHTML(`
-        <div class="p-3 min-w-[250px]">
-          <h3 class="font-bold text-lg text-gray-900">${parcel.title}</h3>
-          <p class="text-sm text-gray-600 mt-1">📍 ${parcel.location}</p>
-          <div class="mt-3 space-y-2 text-sm">
-            <div class="flex justify-between">
-              <span class="text-gray-600">Area:</span>
-              <span class="font-semibold">${parcel.landArea} acres</span>
+        const popupContent = `
+          <div style="padding: 4px; min-width: 220px; font-family: sans-serif;">
+            <h3 style="font-weight: bold; margin: 0 0 4px 0; color: #0f172a; font-size: 14px;">${parcel.title}</h3>
+            <p style="margin: 0 0 8px 0; font-size: 12px; color: #64748b;">📍 ${parcel.location}</p>
+            <div style="font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: #64748b;">Area:</span>
+              <span style="font-weight: 600;">${parcel.landArea} acres</span>
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-600">Status:</span>
-              <span class="px-2 py-1 rounded-full text-xs ${parcel.status === 'approved' ? 'bg-green-100 text-green-800' :
-          parcel.status === 'rejected' ? 'bg-red-100 text-red-800' :
-            'bg-yellow-100 text-yellow-800'
-        }">${parcel.status}</span>
+            <div style="font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="color: #64748b;">Status:</span>
+              <span style="font-weight: 600; text-transform: capitalize;">${parcel.status}</span>
             </div>
-            <div class="flex justify-between">
-              <span class="text-gray-600">Land Type:</span>
-              <span class="font-semibold">${parcel.landType}</span>
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-200">
             <button 
-              onclick="window.verifyLand('${parcel.id}')"
-              class="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold"
+              onclick="window.inspectLandRecord('${parcel.id}')"
+              style="width: 100%; padding: 6px 12px; background-color: #4f46e5; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;"
             >
-              🔍 Inspect Representative Land Record
+              🔍 Inspect Representative Record
             </button>
           </div>
-        </div>
-      `)
+        `
 
-      new mapboxgl.Marker(el)
-        .setLngLat([parcel.longitude, parcel.latitude])
-        .setPopup(popup)
-        .addTo(map.current!)
-    });
+        marker.bindPopup(popupContent)
+      }
+    })
 
-    (window as any).verifyLand = (parcelId: string) => {
+    // Window inspection handler
+    ;(window as any).inspectLandRecord = (parcelId: string) => {
       setVerifying(parcelId)
       setTimeout(() => {
-        const parcel = parcels.find(p => p.id === parcelId)
+        const parcel = parcels.find((p) => p.id === parcelId)
         if (parcel) {
-          setVerifiedData(prev => ({
+          setVerifiedData((prev) => ({
             ...prev,
             [parcelId]: {
               surveyNumber: parcel.surveyNumber,
@@ -176,19 +167,28 @@ export default function MapPage() {
               landUse: parcel.landType,
               soilType: ['Red Loamy', 'Black Cotton', 'Laterite', 'Alluvial'][Math.floor(Math.random() * 4)],
               irrigationSource: ['Rainfed', 'Canal', 'Borewell', 'Tank'][Math.floor(Math.random() * 4)],
-            }
+            },
           }))
           setVerifying(null)
           setSelectedParcel(parcel)
         }
-      }, 1000)
+      }, 800)
     }
-  }, [parcels, loading])
+
+    mapInstance.current = map
+
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.remove()
+        mapInstance.current = null
+      }
+    }
+  }, [loading, parcels, showSatellite])
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600 font-medium">Loading map...</div>
+        <div className="text-gray-600 font-medium">Loading interactive map tiles...</div>
       </div>
     )
   }
@@ -213,15 +213,16 @@ export default function MapPage() {
             </div>
             <button
               onClick={() => setShowSatellite(!showSatellite)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-semibold shadow-sm"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 text-sm font-semibold shadow-sm transition"
             >
-              {showSatellite ? '🗺️ Map View' : '🛰️ Satellite View'}
+              {showSatellite ? '🗺️ Street Map View' : '🛰️ Satellite Map View'}
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div ref={mapContainer} className="h-[600px] w-full" />
+        {/* Leaflet Map Box Container */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden relative">
+          <div ref={mapContainer} className="h-[600px] w-full z-0" />
         </div>
 
         {selectedParcel && verifiedData[selectedParcel.id] && (
@@ -326,7 +327,7 @@ export default function MapPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-medium text-gray-600 mb-2">Active Proposals</h3>
             <p className="text-3xl font-bold text-orange-600">
-              {parcels.filter(p => p.status === 'draft').length}
+              {parcels.filter((p) => p.status === 'draft').length}
             </p>
           </div>
         </div>

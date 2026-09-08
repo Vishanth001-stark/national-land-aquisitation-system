@@ -5,6 +5,8 @@ import RoleGuard from '@/components/RoleGuard'
 import { ROLES } from '@/lib/roles'
 import Link from 'next/link'
 import { doPolygonsIntersect, parseGeoJSONRing, Polygon, Point } from '@/lib/spatial'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 interface CadastralParcel {
   id: string
@@ -76,15 +78,17 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
   const [drawMode, setDrawMode] = useState<'rectangle' | 'polygon' | null>(null)
   const [drawnPoints, setDrawnPoints] = useState<Point[]>([])
   const [intersectedParcels, setIntersectedParcels] = useState<CadastralParcel[]>([])
-  const [isIntersecting, setIsIntersecting] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
   const [isGeneratingInvs, setIsGeneratingInvs] = useState(false)
   const [invitations, setInvitations] = useState<InvitationPreview[] | null>(null)
   const [confirmedSuccess, setConfirmedSuccess] = useState<string | null>(null)
   const [showNotificationModal, setShowNotificationModal] = useState(false)
+  const [showSatellite, setShowSatellite] = useState(false)
 
-  // Canvas map reference
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  // Leaflet map container & instance refs
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapInstanceRef = useRef<L.Map | null>(null)
+  const layerGroupRef = useRef<L.LayerGroup | null>(null)
 
   // Resolve dynamic map center based on project location
   const resolveMapCenter = (): [number, number] => {
@@ -143,7 +147,6 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
       return
     }
 
-    setIsIntersecting(true)
     const userPoly = drawnPoints
 
     const matches = candidateParcels.filter((parcel) => {
@@ -154,195 +157,177 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
     })
 
     setIntersectedParcels(matches)
-    setIsIntersecting(false)
   }, [drawnPoints, candidateParcels])
 
-  // Canvas Interactive Map Renderer
+  // Initialize Leaflet Map
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    if (!mapContainerRef.current || loading) return
 
-    // Set canvas dimensions
-    const width = canvas.parentElement?.clientWidth || 800
-    const height = 500
-    canvas.width = width
-    canvas.height = height
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove()
+      mapInstanceRef.current = null
+    }
 
-    // Dynamic map center based on project location
     const [centerLat, centerLng] = resolveMapCenter()
 
-    // Bounding box: center ± 0.025 lng, center ± 0.015 lat
-    const minLng = centerLng - 0.025
-    const maxLng = centerLng + 0.025
-    const minLat = centerLat - 0.015
-    const maxLat = centerLat + 0.015
+    const map = L.map(mapContainerRef.current).setView([centerLat, centerLng], 14)
 
-    const toCanvasX = (lng: number) => ((lng - minLng) / (maxLng - minLng)) * width
-    const toCanvasY = (lat: number) => height - ((lat - minLat) / (maxLat - minLat)) * height
+    const tileUrl = showSatellite
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
-    // Clear background grid
-    ctx.fillStyle = '#0f172a' // Slate dark background
-    ctx.fillRect(0, 0, width, height)
+    const attribution = showSatellite
+      ? '&copy; Esri &mdash; World Imagery'
+      : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
-    // Draw grid lines
-    ctx.strokeStyle = '#1e293b'
-    ctx.lineWidth = 1
-    for (let x = 0; x < width; x += 40) {
-      ctx.beginPath()
-      ctx.moveTo(x, 0)
-      ctx.lineTo(x, height)
-      ctx.stroke()
+    L.tileLayer(tileUrl, { maxZoom: 19, attribution }).addTo(map)
+
+    const layerGroup = L.layerGroup().addTo(map)
+    layerGroupRef.current = layerGroup
+
+    mapInstanceRef.current = map
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
     }
-    for (let y = 0; y < height; y += 40) {
-      ctx.beginPath()
-      ctx.moveTo(0, y)
-      ctx.lineTo(width, y)
-      ctx.stroke()
-    }
+  }, [loading, project, showSatellite])
 
-    // Draw candidate cadastral parcels
+  // Render parcel polygons & drawn boundary on Leaflet Map
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    const layerGroup = layerGroupRef.current
+    if (!map || !layerGroup) return
+
+    layerGroup.clearLayers()
+
+    // 1. Draw candidate cadastral parcels
     candidateParcels.forEach((parcel) => {
       const ring = parseGeoJSONRing(parcel.geometryJson)
       if (!ring || ring.length < 3) return
 
+      // Convert [lng, lat] -> [lat, lng] for Leaflet
+      const leafletCoords: L.LatLngExpression[] = ring.map(([lng, lat]) => [lat, lng])
+
       const isSelected = intersectedParcels.some((p) => p.id === parcel.id)
+      const isConfirmed = parcel.projectId === projectId
 
-      ctx.beginPath()
-      ring.forEach(([lng, lat], idx) => {
-        const cx = toCanvasX(lng)
-        const cy = toCanvasY(lat)
-        if (idx === 0) ctx.moveTo(cx, cy)
-        else ctx.lineTo(cx, cy)
+      const color = isSelected ? '#eab308' : isConfirmed ? '#22c55e' : '#3b82f6'
+      const fillColor = isSelected ? '#fef08a' : isConfirmed ? '#86efac' : '#93c5fd'
+      const fillOpacity = isSelected ? 0.6 : isConfirmed ? 0.4 : 0.25
+
+      const polyLayer = L.polygon(leafletCoords, {
+        color,
+        fillColor,
+        fillOpacity,
+        weight: isSelected ? 3 : 2,
       })
-      ctx.closePath()
 
-      // Fill style
-      if (isSelected) {
-        ctx.fillStyle = 'rgba(234, 179, 8, 0.45)' // Highlighted Gold
-        ctx.strokeStyle = '#eab308'
-        ctx.lineWidth = 2.5
-      } else if (parcel.projectId === projectId) {
-        ctx.fillStyle = 'rgba(34, 197, 94, 0.35)' // Confirmed Green
-        ctx.strokeStyle = '#22c55e'
-        ctx.lineWidth = 2
-      } else {
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.15)' // Candidate Blue
-        ctx.strokeStyle = '#3b82f6'
-        ctx.lineWidth = 1.5
-      }
-
-      ctx.fill()
-      ctx.stroke()
-
-      // Label parcel survey number
-      if (parcel.longitude && parcel.latitude) {
-        const lx = toCanvasX(Number(parcel.longitude))
-        const ly = toCanvasY(Number(parcel.latitude))
-        ctx.fillStyle = isSelected ? '#fef08a' : '#93c5fd'
-        ctx.font = 'bold 11px sans-serif'
-        ctx.textAlign = 'center'
-        ctx.fillText(parcel.surveyNumber || 'KH', lx, ly - 4)
-        ctx.font = '10px sans-serif'
-        ctx.fillStyle = '#e2e8f0'
-        ctx.fillText(`${parcel.areaHectares || 0} Ha`, lx, ly + 10)
-      }
+      const popupContent = `
+        <div style="font-family: sans-serif; padding: 4px; min-width: 180px;">
+          <h4 style="margin: 0 0 4px 0; font-weight: bold; color: #0f172a; font-size: 13px;">Survey: ${parcel.surveyNumber}</h4>
+          <p style="margin: 0 0 4px 0; font-size: 11px; color: #64748b;">ULPIN: ${parcel.ulpin}</p>
+          <div style="font-size: 11px; margin-bottom: 2px;">Owner: <b>${parcel.ownerName || 'Unspecified'}</b></div>
+          <div style="font-size: 11px; margin-bottom: 2px;">Type: <span style="text-transform: capitalize;">${parcel.landType}</span></div>
+          <div style="font-size: 11px; margin-bottom: 4px;">Area: <b>${parcel.areaHectares} Ha</b></div>
+          <div style="font-size: 11px; color: #047857; font-weight: bold;">Comp: ₹${((Number(parcel.compensationAmount) || 0) / 100000).toFixed(2)} Lakhs</div>
+        </div>
+      `
+      polyLayer.bindPopup(popupContent)
+      layerGroup.addLayer(polyLayer)
     })
 
-    // Draw active user drawn boundary
+    // 2. Draw active user drawn boundary
     if (drawnPoints.length > 0) {
-      ctx.beginPath()
-      drawnPoints.forEach(([lng, lat], idx) => {
-        const cx = toCanvasX(lng)
-        const cy = toCanvasY(lat)
-        if (idx === 0) ctx.moveTo(cx, cy)
-        else ctx.lineTo(cx, cy)
-      })
-      if (drawnPoints.length >= 3) ctx.closePath()
+      const drawnLeafletCoords: [number, number][] = drawnPoints.map(([lng, lat]) => [lat, lng])
 
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.2)'
-      ctx.strokeStyle = '#ef4444'
-      ctx.lineWidth = 2
-      ctx.setLineDash([6, 4])
-      ctx.fill()
-      ctx.stroke()
-      ctx.setLineDash([]) // Reset dash
+      if (drawnPoints.length >= 3) {
+        const drawnPoly = L.polygon(drawnLeafletCoords, {
+          color: '#ef4444',
+          fillColor: '#ef4444',
+          fillOpacity: 0.2,
+          dashArray: '6, 6',
+          weight: 2.5,
+        })
+        layerGroup.addLayer(drawnPoly)
+      } else {
+        const polyline = L.polyline(drawnLeafletCoords, {
+          color: '#ef4444',
+          weight: 2,
+          dashArray: '4, 4',
+        })
+        layerGroup.addLayer(polyline)
+      }
 
       // Draw point markers
-      drawnPoints.forEach(([lng, lat]) => {
-        const cx = toCanvasX(lng)
-        const cy = toCanvasY(lat)
-        ctx.beginPath()
-        ctx.arc(cx, cy, 5, 0, Math.PI * 2)
-        ctx.fillStyle = '#ef4444'
-        ctx.fill()
-        ctx.strokeStyle = '#ffffff'
-        ctx.lineWidth = 1.5
-        ctx.stroke()
+      drawnLeafletCoords.forEach(([lat, lng]) => {
+        const circleMarker = L.circleMarker([lat, lng], {
+          radius: 5,
+          color: '#ffffff',
+          fillColor: '#ef4444',
+          fillOpacity: 1,
+          weight: 2,
+        })
+        layerGroup.addLayer(circleMarker)
       })
     }
   }, [candidateParcels, intersectedParcels, drawnPoints, projectId])
 
-  // Canvas click handler for drawing points
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!drawMode) return
+  // Attach Map Click Handler for Interactive Drawing
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    if (!map) return
 
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
+      if (!drawMode) return
 
-    const width = canvas.width
-    const height = canvas.height
+      const lng = e.latlng.lng
+      const lat = e.latlng.lat
 
-    const [centerLat, centerLng] = resolveMapCenter()
-    const minLng = centerLng - 0.025
-    const maxLng = centerLng + 0.025
-    const minLat = centerLat - 0.015
-    const maxLat = centerLat + 0.015
+      if (drawMode === 'rectangle') {
+        if (drawnPoints.length === 0) {
+          setDrawnPoints([[lng, lat]])
+        } else {
+          const p1 = drawnPoints[0]
+          const p2: Point = [lng, lat]
+          const minX = Math.min(p1[0], p2[0])
+          const maxX = Math.max(p1[0], p2[0])
+          const minY = Math.min(p1[1], p2[1])
+          const maxY = Math.max(p1[1], p2[1])
 
-    const lng = minLng + (x / width) * (maxLng - minLng)
-    const lat = maxLat - (y / height) * (maxLat - minLat)
-
-    if (drawMode === 'rectangle') {
-      if (drawnPoints.length === 0) {
-        setDrawnPoints([[lng, lat]])
-      } else {
-        const p1 = drawnPoints[0]
-        const p2: Point = [lng, lat]
-        const minX = Math.min(p1[0], p2[0])
-        const maxX = Math.max(p1[0], p2[0])
-        const minY = Math.min(p1[1], p2[1])
-        const maxY = Math.max(p1[1], p2[1])
-
-        const rectPoly: Polygon = [
-          [minX, minY],
-          [maxX, minY],
-          [maxX, maxY],
-          [minX, maxY],
-          [minX, minY],
-        ]
-        setDrawnPoints(rectPoly)
-        setDrawMode(null) // Finish rectangle
-      }
-    } else if (drawMode === 'polygon') {
-      const newPoints = [...drawnPoints, [lng, lat] as Point]
-      if (newPoints.length >= 3) {
-        // Automatically close ring for intersection calculations
-        const closed = [...newPoints, newPoints[0]]
-        setDrawnPoints(closed)
-      } else {
-        setDrawnPoints(newPoints)
+          const rectPoly: Polygon = [
+            [minX, minY],
+            [maxX, minY],
+            [maxX, maxY],
+            [minX, maxY],
+            [minX, minY],
+          ]
+          setDrawnPoints(rectPoly)
+          setDrawMode(null)
+        }
+      } else if (drawMode === 'polygon') {
+        const newPoints = [...drawnPoints, [lng, lat] as Point]
+        if (newPoints.length >= 3) {
+          const closed = [...newPoints, newPoints[0]]
+          setDrawnPoints(closed)
+        } else {
+          setDrawnPoints(newPoints)
+        }
       }
     }
-  }
 
-  // Pre-set sample boundary selection (for quick demo click)
+    map.on('click', handleMapClick)
+
+    return () => {
+      map.off('click', handleMapClick)
+    }
+  }, [drawMode, drawnPoints])
+
+  // Demo preset boundary trigger
   const handleSelectPresetBoundary = () => {
     const [centerLat, centerLng] = resolveMapCenter()
-    // Preset boundary surrounding center of project city/location
     const sampleBoundary: Polygon = [
       [centerLng - 0.015, centerLat - 0.010],
       [centerLng + 0.015, centerLat - 0.010],
@@ -380,7 +365,6 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
         setError(data.error || 'Failed to confirm parcel selection')
       } else {
         setConfirmedSuccess(data.message)
-        // Refresh candidate parcels
         const updatedRes = await fetch('/api/cadastral-parcels')
         if (updatedRes.ok) {
           const updatedData = await updatedRes.json()
@@ -426,7 +410,7 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600 font-medium">Loading map selection engine...</div>
+        <div className="text-gray-600 font-medium">Loading interactive map selection engine...</div>
       </div>
     )
   }
@@ -483,7 +467,7 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        {/* Interactive GIS Canvas Map & Controls */}
+        {/* Interactive GIS Leaflet Map & Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
@@ -521,6 +505,12 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
 
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setShowSatellite(!showSatellite)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white border border-slate-700 hover:bg-slate-900 transition"
+                  >
+                    {showSatellite ? '🗺️ Street Map' : '🛰️ Satellite'}
+                  </button>
+                  <button
                     onClick={handleSelectPresetBoundary}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition"
                   >
@@ -537,16 +527,15 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
 
-              {/* Map Canvas Container */}
+              {/* Leaflet Map Box Container */}
               <div className="relative">
-                <canvas
-                  ref={canvasRef}
-                  onClick={handleCanvasClick}
-                  className={`w-full h-[500px] block ${drawMode ? 'cursor-crosshair' : 'cursor-default'}`}
+                <div
+                  ref={mapContainerRef}
+                  className={`w-full h-[500px] z-0 ${drawMode ? 'cursor-crosshair' : 'cursor-default'}`}
                 />
 
                 {/* Map Overlay Instructions */}
-                <div className="absolute top-4 left-4 bg-slate-900/90 text-white p-3 rounded-lg text-xs backdrop-blur border border-slate-700 max-w-xs space-y-1">
+                <div className="absolute top-4 left-4 bg-slate-900/90 text-white p-3 rounded-lg text-xs backdrop-blur border border-slate-700 max-w-xs space-y-1 z-10">
                   <p className="font-bold text-amber-300">🗺️ Map Legend & Instructions</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="w-3 h-3 bg-blue-500/40 border border-blue-400 rounded-sm"></span>
@@ -562,7 +551,7 @@ export default function SelectLandPage({ params }: { params: Promise<{ id: strin
                   </div>
                   {drawMode && (
                     <p className="text-[11px] text-amber-200 mt-2">
-                      Click on map canvas to set {drawMode} boundary coordinates.
+                      Click on map to set {drawMode} boundary points.
                     </p>
                   )}
                 </div>
